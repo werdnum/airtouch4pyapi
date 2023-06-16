@@ -78,6 +78,7 @@ class AirTouch:
         self.acs = dict();
         self.groups = dict();
         self.Messages:List[AirTouchError] = [];
+        self.StartGroupNumber = 0
     
     async def UpdateInfo(self):
         if(self.atPort != None and self.atVersion == None):
