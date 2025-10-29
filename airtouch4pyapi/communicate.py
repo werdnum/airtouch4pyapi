@@ -1,29 +1,38 @@
-from airtouch4pyapi import packetmap
 import asyncio
-import errno
-from socket import error as socket_error
+from typing import Any
+
+import numpy as np
+
+from airtouch4pyapi import packetmap
+
 #from hexdump import hexdump # for debugging
 
-def MessageObjectToMessagePacket(messageObject, mapName, atVersion):
+def MessageObjectToMessagePacket(messageObject: Any, mapName: str, atVersion: Any) -> str:
+    messageString: str
+    dataPayload: str
+    groupControlPacketLocationMap: Any
+
     if(atVersion.value == 5):
-        messageString = "80b001c0";
-        dataPayload = hex(packetmap.SettingValueTranslator.NamedValueToRawValue("MessageType", messageObject.MessageType, 5))[2:]+"00000000040001";
+        messageString = "80b001c0"
+        dataPayload = hex(packetmap.SettingValueTranslator.NamedValueToRawValue("MessageType", messageObject.MessageType, 5))[2:]+"00000000040001"
         groupControlPacketLocationMap = packetmap.DataLocationTranslator.map[5][mapName]
-    
+
     elif(atVersion.value == 4):
-        messageString = "80b001";
+        messageString = "80b001"
         messageString += hex(packetmap.SettingValueTranslator.NamedValueToRawValue("MessageType", messageObject.MessageType))[2:]
-        dataPayload = "";
+        dataPayload = ""
         groupControlPacketLocationMap = packetmap.DataLocationTranslator.map[4][mapName]
-    
+    else:
+        raise ValueError(f"Unsupported AirTouch version: {atVersion.value}")
+
     packetInfoAttributes = [attr for attr in groupControlPacketLocationMap.keys()]
-    binaryMessagePayloadString = "";
+    binaryMessagePayloadString = ""
     for attribute in packetInfoAttributes:
         binaryMessagePayloadString = AddMapValueToBinaryValue(binaryMessagePayloadString, groupControlPacketLocationMap[attribute], messageObject.MessageValues[attribute])
 
-    dataPayload += format(int(binaryMessagePayloadString, 2), '08x');
-    dataLength = len(dataPayload) / 2;
-    lengthString = "0000"[0: 4 - (len(hex((int(dataLength)))[2:]))] + hex((int(dataLength)))[2:];
+    dataPayload += format(int(binaryMessagePayloadString, 2), '08x')
+    dataLength = len(dataPayload) / 2
+    lengthString = "0000"[0: 4 - (len(hex(int(dataLength))[2:]))] + hex(int(dataLength))[2:]
 
     if(atVersion.value == 5):
         messageString += lengthString
@@ -32,43 +41,43 @@ def MessageObjectToMessagePacket(messageObject, mapName, atVersion):
         messageString += lengthString + dataPayload
     return messageString
 
-def AddMapValueToBinaryValue(binaryMessagePayloadString, map, value):
+def AddMapValueToBinaryValue(binaryMessagePayloadString: str, map: str, value: int) -> str:
     byteNumber = int(map.split(":")[0])
-    length = 8;
+    length = 8
     #spec counts bytes backwards so so do we
-    bitmaskstart = length - (int(map.split(":")[1].split("-")[1]) - 1);
-    bitmaskend = length - (int(map.split(":")[1].split("-")[0]) - 1);
+    bitmaskstart = length - (int(map.split(":")[1].split("-")[1]) - 1)
+    bitmaskend = length - (int(map.split(":")[1].split("-")[0]) - 1)
 
     #binaryMessage needs to be at least as long as (byteNumber - 1) * 8 + bitmaskstart, so add as many zeroes as required to make that happen
 
     while(len(binaryMessagePayloadString) < (byteNumber - 1) * 8 + (bitmaskstart - 1)):
         binaryMessagePayloadString += "0"
 
-    binOfValueAsString = bin(value)[2:];
-    lengthNeededForBinValue = bitmaskend - (bitmaskstart - 1);
+    binOfValueAsString = bin(value)[2:]
+    lengthNeededForBinValue = bitmaskend - (bitmaskstart - 1)
     binaryMessagePayloadString = binaryMessagePayloadString + "00000000"[0: lengthNeededForBinValue - len(binOfValueAsString)] + binOfValueAsString
     return binaryMessagePayloadString
 
-def TranslateMapValueToValue(groupChunk, map):
+def TranslateMapValueToValue(groupChunk: bytes, map: str) -> int:
     byteNumber = int(map.split(":")[0])
-    length = 8;
+    length = 8
     if(int(map.split(":")[1].split("-")[1]) > 8):
-        length = 16;
+        length = 16
     #spec counts bytes backwards so so do we
-    bitmaskstart = length - (int(map.split(":")[1].split("-")[1]) - 1);
-    bitmaskend = length - (int(map.split(":")[1].split("-")[0]) - 1);
+    bitmaskstart = length - (int(map.split(":")[1].split("-")[1]) - 1)
+    bitmaskend = length - (int(map.split(":")[1].split("-")[0]) - 1)
     byteAsString = bin(groupChunk[byteNumber - 1])
-    byteStringAdjusted = "00000000"[0: 8 - (len(byteAsString) - 2)] + byteAsString[2:];
+    byteStringAdjusted = "00000000"[0: 8 - (len(byteAsString) - 2)] + byteAsString[2:]
 
     if(length > 8):
-        byteStringAdjusted += ("00000000"[0: 8 - (len(bin(groupChunk[byteNumber])) - 2)] + bin(groupChunk[byteNumber])[2:]);
+        byteStringAdjusted += ("00000000"[0: 8 - (len(bin(groupChunk[byteNumber])) - 2)] + bin(groupChunk[byteNumber])[2:])
 
-    byteSegment = byteStringAdjusted[bitmaskstart - 1: bitmaskend];
+    byteSegment = byteStringAdjusted[bitmaskstart - 1: bitmaskend]
     byteSegmentAsValue = int(byteSegment, 2)
     return byteSegmentAsValue
 
 #might raise a socket or os error if connection fails
-async def SendMessagePacketToAirtouch(messageString, ipAddress, atVersion, atPort):
+async def SendMessagePacketToAirtouch(messageString: str, ipAddress: str, atVersion: Any, atPort: int) -> bytes:
     #add header, add crc
     if(atVersion.value == 5):
         messageString = "555555aa" + messageString + format(crc16(bytes.fromhex(messageString)), '08x')[4:]
@@ -82,18 +91,16 @@ async def SendMessagePacketToAirtouch(messageString, ipAddress, atVersion, atPor
     writer.close()
     await writer.wait_closed()
     #hexdump(response) # for debugging
-    return response;
+    return response
 
-import numpy as np
-
-def crc16(data: bytes):
+def crc16(data: bytes) -> int:
     '''
     CRC-16-ModBus Algorithm
     '''
-    data = bytearray(data)
+    data_array = bytearray(data)
     poly = 0xA001
     crc = 0xFFFF
-    for b in data:
+    for b in data_array:
         crc ^= (0xFF & b)
         for _ in range(0, 8):
             if (crc & 0x0001):

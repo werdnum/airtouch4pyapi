@@ -1,0 +1,5 @@
+numpy
+
+[dev]
+basedpyright>=1.10.0
+ruff>=0.1.0

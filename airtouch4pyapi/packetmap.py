@@ -150,8 +150,8 @@ class SettingValueTranslator:
 
     @staticmethod
     def NamedValueToRawValue(attributeName: str, name: str, atVersion = 4):
-        return SettingValueTranslator.map[atVersion][attributeName][name];
-        
+        return SettingValueTranslator.map[atVersion][attributeName][name]
+
     @staticmethod
     def RawValueToNamedValue(attributeName: str, rawValue: int, atVersion = 4):
         if attributeName not in SettingValueTranslator.map[atVersion].keys():
@@ -160,7 +160,7 @@ class SettingValueTranslator:
             if "TranslateMethod" in SettingValueTranslator.map[atVersion][attributeName].keys():
                 return SettingValueTranslator.map[atVersion][attributeName]["TranslateMethod"](rawValue)
             if(SettingValueTranslator.map[atVersion][attributeName][namedValue] == rawValue):
-                return namedValue;
+                return namedValue
         return ""
 
 
@@ -231,7 +231,7 @@ class DataLocationTranslator:
             }
         },
         5 : {
-                
+
             "GroupStatus" : {
                 "PowerState" : "1:7-8",
                 "GroupNumber" : "1:1-6",
@@ -295,23 +295,23 @@ class DataLocationTranslator:
             "GroupName" : { #TODO
             }
         }
-        
+
     }
 
-class Message():
+class Message:
     def __init__(self, messageType):
-        self.MessageValues = dict();
-        self.MessageType = messageType;
+        self.MessageValues = dict()
+        self.MessageType = messageType
         pass
     def SetMessageValue(self, propertyName, newValue):
         self.MessageValues[propertyName] = newValue
-    
+
 
 class MessageFactory:
     @staticmethod
     def CreateEmptyMessageOfType(messageType, atVersion):
-        message = Message(messageType);
+        message = Message(messageType)
         for attr in DataLocationTranslator.map[atVersion.value][messageType]:
-            message.MessageValues[attr] = 0;
-        return message;
+            message.MessageValues[attr] = 0
+        return message
 #endregion
