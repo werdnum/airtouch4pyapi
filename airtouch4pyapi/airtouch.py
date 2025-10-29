@@ -50,9 +50,10 @@ class AirTouchGroup:
         self.Temperature = 0
         self.TargetSetpoint = 0
         self.BelongsToAc = -1
+        self.PowerState = 0  # Initialize to prevent AttributeError
     @property
     def IsOn(self):
-        return self.PowerState
+        return self.PowerState != 0  # Fix: check != 0 instead of truthy value
 
 class AirTouchError:
     def __init__(self):
@@ -65,9 +66,12 @@ class AirTouchAc:
         self.AcNumber = 0
         self.StartGroupNumber = 0
         self.GroupCount = 0
+        self.PowerState = 0  # Initialize to prevent AttributeError
+        self.ModeSupported = []  # Initialize to prevent AttributeError
+        self.FanSpeedSupported = []  # Initialize to prevent AttributeError
     @property
     def IsOn(self):
-        return self.PowerState
+        return self.PowerState != 0  # Fix: check != 0 instead of truthy value
 
 class AirTouch:
     IpAddress = "";
